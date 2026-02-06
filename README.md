@@ -44,6 +44,7 @@ import AGNavigator
 - `presentedRoute: Route?` - The top route in the stack (`routes.last`).
 - `hasPresentedRoutes: Bool` - `true` when the stack is not empty (useful for UI state decisions).
 - `navigate(to:animated:)` - Pushes a new route to the stack.
+- `replace(with:animated:)` - Replaces the entire stack with new routes.
 - `popLast(_:animated:)` - Pops the last N routes (default is 1).
 - `popToRoot(animated:)` - Clears the stack and returns to root.
 - `contains(_ route: Route?, where:)` - Checks if a specific route (or predicate match) exists in the stack.
@@ -74,26 +75,6 @@ NavigationStack(path: $navigator.routes) {
 - `popLast(_:animated:)` - Pops the last N routes (default is 1).
 - `popToRoot(animated:)` - Clears the path and returns to root.
 - `contains(_:)/contains(of:where:)` - Checks for route existence by value or predicate.
-
-Example: one stack, multiple destination types
-
-```swift
-@State private var navigator = MultiRouteNavigator()
-
-NavigationStack(path: $navigator.routes) {
-    HomeScreen()
-}
-.navigationDestination(for: HomeRoute.self) { route in
-    switch route {
-        /// home destinations
-    }
-}
-.navigationDestination(for: AccountRoute.self) { route in
-    switch route {
-        /// account destinations
-    }
-}
-```
 
 ### `ModalPresenter<Route: NavigationRoute>`
 
@@ -236,8 +217,6 @@ struct MainScreen: View {
     @State private var appNavigator = TabAppNavigator()
 
     var body: some View {
-        @Bindable var appNavigator = appNavigator
-
         TabView(selection: $appNavigator.selectedTab) {
             Tab("Home", systemImage: "house", value: AppTab.home) {
                 HomeNavigationScreen()
@@ -296,8 +275,6 @@ struct HomeStackScreen: View {
     @State private var navigator = MultiRouteNavigator()
 
     var body: some View {
-        @Bindable var navigator = navigator
-
         NavigationStack(path: $navigator.routes) {
             VStack(alignment: .leading, spacing: 16) {
                 Button("Open Details") {
@@ -411,12 +388,7 @@ final class AppNavigator {
 
 enum HomeRoute: NavigationRoute {
     case detail(id: String)
-    case profile(ProfileRoute)
-}
-
-enum ProfileRoute: NavigationRoute {
-    case edit
-    case followers
+    case profile
 }
 
 enum SettingsRoute: NavigationRoute {
