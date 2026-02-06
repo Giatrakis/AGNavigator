@@ -23,6 +23,12 @@ public final class Navigator<Route: NavigationRoute>: Navigating {
         }
     }
 
+    public func replace(with routes: [Route], animated: Bool = true) {
+        perform(animated: animated) {
+            self.routes = routes
+        }
+    }
+
     public func contains(_ route: Route?, where predicate: ((Route) -> Bool)? = nil) -> Bool {
         if let predicate {
             return routes.contains(where: predicate)

@@ -34,6 +34,27 @@ struct NavigatorTests {
         #expect(navigator.routes == [.detail(id: "home-002")])
     }
 
+    @Test("replace overwrites routes")
+    @MainActor
+    func replaceOverwritesRoutes() {
+        // Given
+        let navigator = Navigator<TestNavigationRoute>(
+            routes: [.detail(id: "home-001")]
+        )
+
+        // When
+        navigator.replace(with: [
+            .detail(id: "home-100"),
+            .subDetail(id: "home-200"),
+        ])
+
+        // Then
+        #expect(navigator.routes == [
+            .detail(id: "home-100"),
+            .subDetail(id: "home-200"),
+        ])
+    }
+
     @Test("popLast default removes one route")
     @MainActor
     func popLastDefaultRemovesOneRoute() {
