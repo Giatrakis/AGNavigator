@@ -7,7 +7,14 @@
 
 import Foundation
 
+/// Parses URLs into `DeepLinkRequest` values used for navigation mapping.
 public struct DeepLinkParser: DeepLinkParsing {
+    /// Parses a URL into a `DeepLinkRequest`.
+    ///
+    /// For custom schemes, the host is included as the first path segment.
+    /// For universal links, only the path segments are used.
+    /// - Parameter url: The URL to parse.
+    /// - Returns: A parsed request containing `path` and `data`, or `nil` if invalid.
     public static func parse(url: URL) -> DeepLinkRequest? {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
             return nil
@@ -38,6 +45,9 @@ public struct DeepLinkParser: DeepLinkParsing {
         )
     }
 
+    /// Parses a raw URL string into a `DeepLinkRequest`.
+    /// - Parameter urlString: The URL string to parse.
+    /// - Returns: A parsed request containing `path` and `data`, or `nil` if invalid.
     public static func parse(urlString: String) -> DeepLinkRequest? {
         guard let url = URL(string: urlString) else { return nil }
         return parse(url: url)
