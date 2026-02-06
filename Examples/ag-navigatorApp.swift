@@ -13,6 +13,7 @@ struct AGNavigatorApp: App {
         WindowGroup {
             TabBasedApp()
 //            SingleTabApp()
+//            MultiRouteNavigatorApp()
         }
     }
 }

@@ -5,6 +5,7 @@ AGNavigator is a lightweight, reusable navigation layer for modern SwiftUI apps.
 It helps you model navigation with typed routes, keep flows testable, and compose both single-stack and tab-based apps without locking into a rigid architecture.
 Instead of a monolithic router, it gives you clear, focused building blocks:
 - `Navigator<Route>` for stack navigation
+- `MultiRouteNavigator` for multiple route types in a single stack
 - `ModalPresenter<Route>` for sheet/full-screen presentation
 - `DeepLinkParser` for URL parsing
 
@@ -13,6 +14,7 @@ Built for modern SwiftUI (`NavigationStack`, `@Observable`, iOS 17+).
 ## Features
 
 - Supports both single-stack navigation and tab-based navigation apps
+- Adds `MultiRouteNavigator` for a single stack with multiple route types
 - Typed destinations with enums (`NavigationRoute`)
 - Navigate/pop with animation control
 - Present/dismiss modals with animation control
@@ -60,6 +62,37 @@ NavigationStack(path: $navigator.routes) {
     HomeView()
 }
 .toolbar(navigator.hasPresentedRoutes ? .hidden : .visible, for: .tabBar)
+```
+
+### `MultiRouteNavigator`
+
+- `routes: NavigationPath` - The current path for a `NavigationStack(path:)`.
+- `presentedRoute(of:)` - Returns the top route of a given type.
+- `hasPresentedRoutes: Bool` - `true` when the path is not empty.
+- `navigate(to:animated:)` - Pushes a new route (any Hashable type).
+- `replace(with:animated:)` - Replaces the entire path with new routes.
+- `popLast(_:animated:)` - Pops the last N routes (default is 1).
+- `popToRoot(animated:)` - Clears the path and returns to root.
+- `contains(_:)/contains(of:where:)` - Checks for route existence by value or predicate.
+
+Example: one stack, multiple destination types
+
+```swift
+@State private var navigator = MultiRouteNavigator()
+
+NavigationStack(path: $navigator.routes) {
+    HomeScreen()
+}
+.navigationDestination(for: HomeRoute.self) { route in
+    switch route {
+        /// home destinations
+    }
+}
+.navigationDestination(for: AccountRoute.self) { route in
+    switch route {
+        /// account destinations
+    }
+}
 ```
 
 ### `ModalPresenter<Route: NavigationRoute>`
@@ -237,6 +270,81 @@ struct SearchNavigationScreen: View {
 }
 ```
 
+### 4) Use MultiRouteNavigator in a Single Stack
+
+Use `MultiRouteNavigator` when a single `NavigationStack` needs to support **multiple route types**, so you can keep each flow’s `navigationDestination` separate.
+In the example below, the Home stack handles `HomeRoute` destinations, while the Account flow registers its own `AccountRoute` destinations on the same stack.
+This keeps each flow focused and prevents a single, oversized route enum just to support nested navigation.
+In most scenarios, the simple `Navigator<Route>` is enough.
+
+```swift
+import SwiftUI
+import Observation
+import AGNavigator
+
+enum HomeRoute: Hashable {
+    case details
+    case account
+}
+
+enum AccountRoute: Hashable {
+    case edit
+    case followers
+}
+
+struct HomeStackScreen: View {
+    @State private var navigator = MultiRouteNavigator()
+
+    var body: some View {
+        @Bindable var navigator = navigator
+
+        NavigationStack(path: $navigator.routes) {
+            VStack(alignment: .leading, spacing: 16) {
+                Button("Open Details") {
+                    navigator.navigate(to: HomeRoute.details)
+                }
+                Button("Open Account") {
+                    navigator.navigate(to: HomeRoute.account)
+                }
+            }
+            .navigationTitle("Home")
+            .navigationDestination(for: HomeRoute.self) { route in
+                switch route {
+                case .details:
+                    Text("Details Screen")
+                case .account:
+                    AccountScreen(navigator: navigator)
+                }
+            }
+        }
+    }
+}
+
+struct AccountScreen: View {
+    @Bindable var navigator: MultiRouteNavigator
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Button("Edit Profile") {
+                navigator.navigate(to: AccountRoute.edit)
+            }
+            Button("Followers") {
+                navigator.navigate(to: AccountRoute.followers)
+            }
+        }
+        .navigationTitle("Account")
+        .navigationDestination(for: AccountRoute.self) { route in
+            switch route {
+            case .edit:
+                Text("Edit Screen")
+            case .followers:
+                Text("Followers Screen")
+            }
+        }
+    }
+}
+```
+
 ## Deep Links
 
 `DeepLinkParser` converts URLs to `DeepLinkRequest`:
@@ -269,6 +377,163 @@ Typical integration:
         break
     }
 }
+```
+
+Example mapping to a route:
+
+```swift
+func handleDeepLink(_ url: URL, navigator: Navigator<HomeRoute>) {
+    guard let request = DeepLinkParser.parse(url: url) else { return }
+
+    guard request.root == "home" else { return }
+    if request.childPath.first == "detail",
+       let id = request.data["id"] {
+        navigator.navigate(to: .detail(id: id))
+    }
+}
+```
+
+## UIKit Coordinator Parallels
+
+If you’re used to UIKit coordinators, the mental model is similar: keep flow logic out of view code, make navigation explicit, and keep it testable. The main shift in SwiftUI is that navigation becomes **state-driven** rather than **imperative**—you describe the stack and SwiftUI renders it.
+
+Here’s how familiar UIKit coordinator concepts map to SwiftUI:
+
+- **Root coordinator**: In UIKit this owns the app’s top-level flow and decides which child flow starts. In SwiftUI this becomes your app-level composition that wires together the main navigators and initial state (often a tab-based root).
+
+```swift
+@Observable
+final class AppNavigator {
+    var home = Navigator<HomeRoute>()
+    var settings = Navigator<SettingsRoute>()
+    var selectedTab: AppTab = .home
+}
+
+enum HomeRoute: NavigationRoute {
+    case detail(id: String)
+    case profile(ProfileRoute)
+}
+
+enum ProfileRoute: NavigationRoute {
+    case edit
+    case followers
+}
+
+enum SettingsRoute: NavigationRoute {
+    case about
+    case contact
+}
+
+enum AppTab {
+    case home
+    case settings
+}
+
+@main
+struct AGNavigatorApp: App {
+    @State private var appNavigator = AppNavigator()
+
+    var body: some Scene {
+        WindowGroup {
+            TabView(selection: $appNavigator.selectedTab) {
+                Tab("Home", systemImage: "house", value: AppTab.home) {
+                    HomeScreen()
+                }
+                Tab("Settings", systemImage: "gear", value: AppTab.settings) {
+                    SettingsScreen()
+                }
+            }
+            .environment(appNavigator)
+        }
+    }
+}
+```
+- **Child coordinators**: In UIKit these isolate a specific flow (Onboarding, Profile, Checkout), centralize its screens and routing, and keep the parent coordinator lean. In SwiftUI you can mirror that separation by keeping each flow’s `navigationDestination` in its own view, and use `MultiRouteNavigator` when a single stack needs multiple route types.
+
+```swift
+struct HomeScreen: View {
+    @State private var navigator = MultiRouteNavigator()
+
+    var body: some View {
+        NavigationStack(path: $navigator.routes) {
+            Button("Open Profile") {
+                navigator.navigate(to: HomeRoute.profile)
+            }
+        }
+        .navigationDestination(for: HomeRoute.self) { route in
+            switch route {
+            case .detail(let id):
+                HomeDetailScreen(id: id)
+            case .profile:
+                ProfileScreen(navigator: navigator)
+            }
+        }
+    }
+}
+
+struct ProfileScreen: View {
+    @Bindable var navigator: MultiRouteNavigator
+
+    var body: some View {
+        VStack {
+            Button("Edit") {
+                navigator.navigate(to: ProfileRoute.edit)
+            }
+            
+            Button("Followers") {
+                navigator.navigate(to: ProfileRoute.followers)
+            }
+        }
+        .navigationDestination(for: ProfileRoute.self) { route in
+            switch route {
+            case .edit:
+                EditProfileScreen()
+            case .followers:
+                FollowersScreen()
+            }
+        }
+    }
+}
+```
+- **Navigation stack**: UIKit pushes and pops view controllers on a `UINavigationController`. SwiftUI replaces that with a `routes` array bound to `NavigationStack(path:)`.
+
+```swift
+NavigationStack(path: $navigator.routes) {
+    HomeScreen()
+}
+```
+
+- **start(animated:)**: UIKit coordinators build a root view controller and push it. SwiftUI starts a flow by setting the initial route state and composing the root view.
+- **push / pop**: UIKit calls `pushViewController` and `popViewController`. SwiftUI updates state via `navigate`, `popLast`, and `popToRoot`.
+
+```swift
+navigator.navigate(to: .detail(id: "42"))
+navigator.popLast()
+navigator.popLast(2)
+navigator.popToRoot()
+```
+
+- **Modal flow**: UIKit coordinators present modals and dismiss them. SwiftUI uses `ModalPresenter` to hold modal state for sheets and full-screen covers.
+
+```swift
+modalPresenter.present(.info(message: "Hello"), as: .sheet)
+modalPresenter.dismiss()
+```
+
+- **Dependency injection**: UIKit passes coordinators into view controllers. SwiftUI passes navigators explicitly or injects them via the environment.
+
+```swift
+// Explicit
+HomeScreen(navigator: navigator)
+
+// Environment
+.environment(appNavigator)
+```
+
+- **Flow cleanup**: UIKit removes child coordinators when a flow ends. SwiftUI clears state (for example, resetting routes) to unwind a flow.
+
+```swift
+navigator.popToRoot()
 ```
 
 ## Requirements
