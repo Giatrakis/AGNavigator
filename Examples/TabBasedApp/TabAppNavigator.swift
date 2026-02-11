@@ -27,9 +27,9 @@ final class TabAppNavigator {
 
     func resetAllTabs(animated: Bool = true) {
         perform(animated: animated) {
-            home.popToRoot(animated: true)
-            search.popToRoot(animated: true)
-            settings.popToRoot(animated: true)
+            home.popToRoot(animated: animated)
+            search.popToRoot(animated: animated)
+            settings.popToRoot(animated: animated)
         }
     }
 
@@ -53,17 +53,17 @@ private extension TabAppNavigator {
         case AppTab.home.rawValue:
             guard let routes = parseHomeRoutes(from: request.childPath) else { return false }
             selectedTab = .home
-            home.routes = routes
+            home.replace(with: routes)
             return true
         case AppTab.search.rawValue:
             guard let routes = parseSearchRoutes(from: request.childPath, data: request.data) else { return false }
             selectedTab = .search
-            search.routes = routes
+            search.replace(with: routes)
             return true
         case AppTab.settings.rawValue:
             guard let routes = parseSettingsRoutes(from: request.childPath) else { return false }
             selectedTab = .settings
-            settings.routes = routes
+            settings.replace(with: routes)
             return true
         default:
             return false

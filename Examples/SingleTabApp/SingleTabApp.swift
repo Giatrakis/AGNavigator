@@ -16,9 +16,9 @@ struct SingleTabApp: View {
 
             switch path {
             case "detail":
-                navigator.routes = [.detail(id: routeValue)]
+                navigator.replace(with: [.detail(id: routeValue)])
             case "subdetail", "sub-detail":
-                navigator.routes = [.subDetail(id: routeValue)]
+                navigator.replace(with: [.subDetail(id: routeValue)])
             default:
                 return
             }

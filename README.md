@@ -77,6 +77,17 @@ NavigationStack(path: $navigator.routes) {
 - `popToRoot(animated:)` - Clears the path and returns to root.
 - `contains(_:)/contains(of:where:)` - Checks for route existence by value or predicate.
 
+How it works:
+- `MultiRouteNavigator` exposes a single `NavigationPath` (`routes`) that you bind to `NavigationStack(path:)`.
+- Every push/pop/replace operation updates that path, so SwiftUI drives the actual screen transitions from state.
+- Because one `NavigationPath` can contain different `Hashable` route types, each feature can register its own `navigationDestination(for:)` without sharing one global route enum.
+- `contains` and `presentedRoute` provide typed introspection for routes pushed through `MultiRouteNavigator` APIs.
+- Compared with `Navigator<Route>`, which uses a typed `[Route]` stack for a single route type, `MultiRouteNavigator` trades strict compile-time route typing for flexibility across multiple route types in one stack.
+
+State contract:
+- `contains` and `presentedRoute` are guaranteed only for routes added through `MultiRouteNavigator` APIs (`navigate` / `replace`).
+- If `routes` is mutated externally (for example via `NavigationStack` binding), those externally added elements are not available to typed introspection.
+
 ### `ModalPresenter<Route: NavigationRoute>`
 
 - `presentedRoute: Route?` - The currently presented modal route (if any).
@@ -263,13 +274,6 @@ Use `MultiRouteNavigator` when a single `NavigationStack` needs to support **mul
 In the example below, the HomeScreen handles `HomeRoute` destinations, while the AccountScreen registers its own `AccountRoute` destinations on the same stack.
 This keeps each flow focused and prevents a single, oversized route enum just to support nested navigation.
 In most scenarios, the simple `Navigator<Route>` is enough.
-
-How it works:
-- `MultiRouteNavigator` exposes a single `NavigationPath` (`routes`) that you bind to `NavigationStack(path:)`.
-- Every push/pop/replace operation updates that path, so SwiftUI drives the actual screen transitions from state.
-- Because one `NavigationPath` can contain different `Hashable` route types, each feature can register its own `navigationDestination(for:)` without sharing one global route enum.
-- `contains` and `presentedRoute` provide typed introspection for routes pushed through `MultiRouteNavigator` APIs.
-- Compared with `Navigator<Route>`, which uses a typed `[Route]` stack for a single route type, `MultiRouteNavigator` trades strict compile-time route typing for flexibility across multiple route types in one stack.
 
 ```swift
 import SwiftUI

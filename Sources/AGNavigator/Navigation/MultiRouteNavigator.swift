@@ -21,6 +21,8 @@ public final class MultiRouteNavigator: MultiRouteNavigating {
 
             let newCount = routes.count
             let oldCount = oldValue.count
+            let isNoOpAssignment = oldCount == newCount &&
+                String(reflecting: oldValue) == String(reflecting: routes)
 
             // External mutations can come from NavigationStack bindings. We keep
             // known route values when the path shrinks and mark externally-added
@@ -35,7 +37,8 @@ public final class MultiRouteNavigator: MultiRouteNavigating {
 
             // If the count is unchanged but the path was externally replaced,
             // we cannot safely infer the typed values, so invalidate known entries.
-            if newCount == oldCount, oldCount > 0 {
+            // Skip invalidation for no-op assignments.
+            if newCount == oldCount, oldCount > 0, !isNoOpAssignment {
                 storage = Array(repeating: .unknown, count: newCount)
             }
         }
