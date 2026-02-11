@@ -16,24 +16,38 @@ import SwiftUI
 public final class MultiRouteNavigator: MultiRouteNavigating {
     /// The path bound to `NavigationStack(path:)`.
     public var routes: NavigationPath {
-        didSet {
-            let newCount = routes.count
-            let currentCount = storage.count
+        didSet(oldValue) {
+            guard !isInternalMutation else { return }
 
-            if newCount < currentCount {
-                storage.removeLast(currentCount - newCount)
-            } else if newCount > currentCount {
-                storage.removeAll()
+            let newCount = routes.count
+            let oldCount = oldValue.count
+
+            // External mutations can come from NavigationStack bindings. We keep
+            // known route values when the path shrinks and mark externally-added
+            // elements as unknown placeholders.
+            if newCount < storage.count {
+                storage.removeLast(storage.count - newCount)
+            } else if newCount > storage.count {
+                storage.append(
+                    contentsOf: Array(repeating: .unknown, count: newCount - storage.count)
+                )
+            }
+
+            // If the count is unchanged but the path was externally replaced,
+            // we cannot safely infer the typed values, so invalidate known entries.
+            if newCount == oldCount, oldCount > 0 {
+                storage = Array(repeating: .unknown, count: newCount)
             }
         }
     }
-    private var storage: [AnyHashable]
+    private var storage: [StorageElement]
+    private var isInternalMutation = false
 
     /// Creates an empty navigator or one seeded with an existing path.
     /// - Parameter path: The initial navigation path.
     public init(path: NavigationPath = NavigationPath()) {
         self.routes = path
-        self.storage = []
+        self.storage = Array(repeating: .unknown, count: path.count)
     }
 
     /// Creates a navigator seeded with typed routes.
@@ -43,7 +57,7 @@ public final class MultiRouteNavigator: MultiRouteNavigating {
         self.storage = []
         self.storage.reserveCapacity(routes.count)
         for route in routes {
-            storage.append(route)
+            storage.append(.known(AnyHashable(route)))
             self.routes.append(route)
         }
     }
@@ -54,7 +68,7 @@ public final class MultiRouteNavigator: MultiRouteNavigating {
     ///   - animated: Whether the transition should animate. Defaults to `true`.
     public func navigate<Route: Hashable>(to route: Route, animated: Bool = true) {
         perform(animated: animated) {
-            storage.append(route)
+            storage.append(.known(AnyHashable(route)))
             routes.append(route)
         }
     }
@@ -69,7 +83,7 @@ public final class MultiRouteNavigator: MultiRouteNavigating {
             storage.reserveCapacity(routes.count)
             var newPath = NavigationPath()
             for route in routes {
-                storage.append(route)
+                storage.append(.known(AnyHashable(route)))
                 newPath.append(route)
             }
             self.routes = newPath
@@ -83,7 +97,8 @@ public final class MultiRouteNavigator: MultiRouteNavigating {
     /// - Returns: `true` when a matching route exists.
     public func contains<Route: Hashable>(of type: Route.Type, where predicate: (Route) -> Bool) -> Bool {
         storage.contains { element in
-            guard let value = element as? Route else { return false }
+            guard case .known(let value) = element,
+                  let value = value as? Route else { return false }
             return predicate(value)
         }
     }
@@ -92,7 +107,10 @@ public final class MultiRouteNavigator: MultiRouteNavigating {
     /// - Parameter type: The route type to search.
     /// - Returns: The latest matching route, or `nil` if none exist.
     public func presentedRoute<Route: Hashable>(of type: Route.Type) -> Route? {
-        storage.reversed().compactMap { $0 as? Route }.first
+        storage.reversed().compactMap { element in
+            guard case .known(let value) = element else { return nil }
+            return value as? Route
+        }.first
     }
 
     /// Pops the last N routes from the path.
@@ -125,14 +143,29 @@ public final class MultiRouteNavigator: MultiRouteNavigating {
 
 private extension MultiRouteNavigator {
     func perform(animated: Bool, _ mutation: () -> Void) {
-        if animated {
-            mutation()
-        } else {
-            var transaction = Transaction()
-            transaction.disablesAnimations = true
-            withTransaction(transaction) {
+        withInternalMutation {
+            if animated {
                 mutation()
+            } else {
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    mutation()
+                }
             }
         }
+    }
+
+    func withInternalMutation(_ mutation: () -> Void) {
+        isInternalMutation = true
+        defer { isInternalMutation = false }
+        mutation()
+    }
+}
+
+private extension MultiRouteNavigator {
+    enum StorageElement {
+        case known(AnyHashable)
+        case unknown
     }
 }
