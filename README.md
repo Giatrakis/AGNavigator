@@ -1,6 +1,7 @@
 # AGNavigator
 
-AGNavigator is a lightweight, reusable navigation layer for modern SwiftUI apps.
+A lightweight, reusable navigation layer for modern SwiftUI apps.
+AGNavigator is intentionally simple: it is a set of small wrappers around SwiftUI navigation APIs, not a complex framework.
 
 It helps you model navigation with typed routes, keep flows testable, and compose both single-stack and tab-based apps without locking into a rigid architecture.
 Instead of a monolithic router, it gives you clear, focused building blocks:
@@ -104,7 +105,14 @@ modalPresenter.dismiss(animated: false)
 - `ModalPresentationPolicy` (`replaceCurrent`, `ignoreIfAlreadyPresented`) - Defines what happens when a modal is already visible.
 - `DeepLinkRequest` (`path`, `data`, `root`, `childPath`) - Parsed deep-link payload used by your mapping logic.
 
-## Quick Start
+### When To Use What
+
+- Use `Navigator<Route>` when a flow uses a single route type, including tab-based apps (one navigator per tab flow).
+- Use `MultiRouteNavigator` only when one `NavigationStack` must support multiple route types.
+- Use `ModalPresenter<Route>` to manage sheet/full-screen modal state.
+- Use `DeepLinkParser` to parse URLs, then map the parsed request to your app routes.
+
+## Examples
 
 ### 1) Define routes
 
@@ -252,9 +260,16 @@ struct SearchNavigationScreen: View {
 ### 4) Use MultiRouteNavigator in a Single Stack
 
 Use `MultiRouteNavigator` when a single `NavigationStack` needs to support **multiple route types**, so you can keep each flow’s `navigationDestination` separate.
-In the example below, the Home stack handles `HomeRoute` destinations, while the Account flow registers its own `AccountRoute` destinations on the same stack.
+In the example below, the HomeScreen handles `HomeRoute` destinations, while the AccountScreen registers its own `AccountRoute` destinations on the same stack.
 This keeps each flow focused and prevents a single, oversized route enum just to support nested navigation.
 In most scenarios, the simple `Navigator<Route>` is enough.
+
+How it works:
+- `MultiRouteNavigator` exposes a single `NavigationPath` (`routes`) that you bind to `NavigationStack(path:)`.
+- Every push/pop/replace operation updates that path, so SwiftUI drives the actual screen transitions from state.
+- Because one `NavigationPath` can contain different `Hashable` route types, each feature can register its own `navigationDestination(for:)` without sharing one global route enum.
+- `contains` and `presentedRoute` provide typed introspection for routes pushed through `MultiRouteNavigator` APIs.
+- Compared with `Navigator<Route>`, which uses a typed `[Route]` stack for a single route type, `MultiRouteNavigator` trades strict compile-time route typing for flexibility across multiple route types in one stack.
 
 ```swift
 import SwiftUI
