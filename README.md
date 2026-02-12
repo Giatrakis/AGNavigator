@@ -50,6 +50,9 @@ import AGNavigator
 - `popToRoot(animated:)` - Clears the stack and returns to root.
 - `contains(_ route: Route?, where:)` - Checks if a specific route (or predicate match) exists in the stack.
 
+Contract:
+- `contains` and `presentedRoute` always reflect the current `routes` array.
+
 Animation control examples:
 
 ```swift
@@ -84,9 +87,9 @@ How it works:
 - `contains` and `presentedRoute` provide typed introspection for routes pushed through `MultiRouteNavigator` APIs.
 - Compared with `Navigator<Route>`, which uses a typed `[Route]` stack for a single route type, `MultiRouteNavigator` trades strict compile-time route typing for flexibility across multiple route types in one stack.
 
-State contract:
-- `contains` and `presentedRoute` are guaranteed only for routes added through `MultiRouteNavigator` APIs (`navigate` / `replace`).
-- If `routes` is mutated externally (for example via `NavigationStack` binding), those externally added elements are not available to typed introspection.
+Contract:
+- Typed introspection (`contains` / `presentedRoute`) is guaranteed only for routes added through `navigate` / `replace`.
+- If `routes` is mutated externally (for example via `NavigationStack` binding, or a `NavigationLink`), externally added elements are not available to typed introspection.
 
 ### `ModalPresenter<Route: NavigationRoute>`
 
@@ -109,6 +112,13 @@ modalPresenter.dismiss(animated: false)
 - `parse(url:)` - Parses a `URL` into a `DeepLinkRequest` (`path` + `data`).
 - `parse(urlString:)` - Convenience overload for parsing from a raw string.
 
+Default behavior:
+- Path casing is preserved.
+- Query keys are lowercased.
+- Duplicate query keys use last value wins.
+- Query items without value are ignored.
+- URL fragments are ignored.
+
 ### Supporting types
 
 - `NavigationRoute` - Route constraint (`Hashable + Identifiable`) used by navigators/presenters.
@@ -124,6 +134,8 @@ modalPresenter.dismiss(animated: false)
 - Use `DeepLinkParser` to parse URLs, then map the parsed request to your app routes.
 
 ## Examples
+
+Examples below are reference implementations to demonstrate usage patterns. They are not required architecture rules. The package contract is defined in the **Core API** section above.
 
 ### 1) Define routes
 
