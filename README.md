@@ -1,6 +1,7 @@
 # AGNavigator
 
 A lightweight, reusable navigation layer for modern SwiftUI apps.
+
 AGNavigator is intentionally simple: it is a set of small wrappers around SwiftUI navigation APIs, not a complex framework.
 
 It helps you model navigation with typed routes, keep flows testable, and compose both single-stack and tab-based apps without locking into a rigid architecture.
@@ -126,7 +127,7 @@ Default behavior:
 - `ModalPresentationPolicy` (`replaceCurrent`, `ignoreIfAlreadyPresented`) - Defines what happens when a modal is already visible.
 - `DeepLinkRequest` (`path`, `data`, `root`, `childPath`) - Parsed deep-link payload used by your mapping logic.
 
-### When To Use What
+## When To Use What
 
 - Use `Navigator<Route>` when a flow uses a single route type, including tab-based apps (one navigator per tab flow).
 - Use `MultiRouteNavigator` only when one `NavigationStack` must support multiple route types.
