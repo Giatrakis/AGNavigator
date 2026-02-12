@@ -304,9 +304,9 @@ struct MultiRouteNavigatorTests {
         #expect(navigator.presentedRoute(of: TestPathRoute.self) == nil)
     }
 
-    @Test("external same-count reassignment keeps typed entries")
+    @Test("external same-count reassignment invalidates typed entries for non-codable path elements")
     @MainActor
-    func externalSameCountReassignmentKeepsTypedEntries() {
+    func externalSameCountReassignmentInvalidatesTypedEntriesForNonCodableElements() {
         // Given
         let navigator = MultiRouteNavigator()
         navigator.navigate(to: TestPathRoute.detail(id: "home-001"))
@@ -318,8 +318,8 @@ struct MultiRouteNavigatorTests {
 
         // Then
         #expect(navigator.routes.count == 2)
-        #expect(navigator.contains(TestPathRoute.detail(id: "home-001")))
-        #expect(navigator.presentedRoute(of: TestPathRoute.self) == .subDetail(id: "nested-001"))
+        #expect(!navigator.contains(TestPathRoute.detail(id: "home-001")))
+        #expect(navigator.presentedRoute(of: TestPathRoute.self) == nil)
     }
 
     @Test("internal navigate and replace keep typed introspection")
