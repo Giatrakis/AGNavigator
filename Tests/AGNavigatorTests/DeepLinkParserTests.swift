@@ -163,4 +163,57 @@ struct DeepLinkParserTests {
         #expect(customRequest == nil)
         #expect(universalRequest == nil)
     }
+
+    @Test("options can disable host inclusion for custom schemes")
+    func optionsCanDisableHostInclusionForCustomSchemes() {
+        // Given
+        let url = URL(string: "myapp://home/detail/123")!
+        let options = DeepLinkParser.Options(includeHostForCustomSchemes: false)
+
+        // When
+        let request = DeepLinkParser.parse(url: url, options: options)
+
+        // Then
+        #expect(request?.path == ["detail", "123"])
+    }
+
+    @Test("options can lowercase path segments")
+    func optionsCanLowercasePathSegments() {
+        // Given
+        let url = URL(string: "myapp://Home/Detail/ABC")!
+        let options = DeepLinkParser.Options(normalizePathToLowercase: true)
+
+        // When
+        let request = DeepLinkParser.parse(url: url, options: options)
+
+        // Then
+        #expect(request?.path == ["home", "detail", "abc"])
+    }
+
+    @Test("options can preserve query key casing")
+    func optionsCanPreserveQueryKeyCasing() {
+        // Given
+        let url = URL(string: "myapp://search/results?Query=swiftui")!
+        let options = DeepLinkParser.Options(normalizeQueryKeysToLowercase: false)
+
+        // When
+        let request = DeepLinkParser.parse(url: url, options: options)
+
+        // Then
+        #expect(request?.data["Query"] == "swiftui")
+        #expect(request?.data["query"] == nil)
+    }
+
+    @Test("options can keep first repeated query value")
+    func optionsCanKeepFirstRepeatedQueryValue() {
+        // Given
+        let url = URL(string: "myapp://search/results?query=swift&query=swiftui")!
+        let options = DeepLinkParser.Options(queryDuplicatePolicy: .firstWins)
+
+        // When
+        let request = DeepLinkParser.parse(url: url, options: options)
+
+        // Then
+        #expect(request?.data["query"] == "swift")
+    }
 }

@@ -356,6 +356,19 @@ let request = DeepLinkParser.parse(url: url)
 - Custom scheme (`myapp://home/detail/123`) includes host as first path segment.
 - Universal link (`https://example.com/home/detail/123`) uses URL path segments.
 
+Default canonicalization rules:
+- Path segments keep original casing.
+- Query keys are normalized to lowercase.
+- Duplicate query keys use last value wins.
+- Query items without value are ignored.
+- URL fragment is ignored.
+
+`DeepLinkParser` also supports `Options` for:
+- including/excluding custom-scheme host in path
+- lowercasing path segments
+- preserving query key casing
+- choosing duplicate-key policy (`firstWins` / `lastWins`)
+
 Typical integration:
 
 ```swift
