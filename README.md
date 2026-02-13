@@ -40,6 +40,13 @@ import AGNavigator
 
 ## Core API
 
+## When To Use What
+
+- Use `Navigator<Route>` when a flow uses a single route type, including tab-based apps (one navigator per tab flow).
+- Use `MultiRouteNavigator` only when one `NavigationStack` must support multiple route types.
+- Use `ModalPresenter<Route>` to manage sheet/full-screen modal state.
+- Use `DeepLinkParser` to parse URLs, then map the parsed request to your app routes.
+
 ### `Navigator<Route: NavigationRoute>`
 
 - `routes: [Route]` - The current stack for a `NavigationStack(path:)`.
@@ -127,13 +134,6 @@ Default behavior:
 - `ModalPresentationPolicy` (`replaceCurrent`, `ignoreIfAlreadyPresented`) - Defines what happens when a modal is already visible.
 - `DeepLinkRequest` (`path`, `data`, `root`, `childPath`) - Parsed deep-link payload used by your mapping logic.
 
-## When To Use What
-
-- Use `Navigator<Route>` when a flow uses a single route type, including tab-based apps (one navigator per tab flow).
-- Use `MultiRouteNavigator` only when one `NavigationStack` must support multiple route types.
-- Use `ModalPresenter<Route>` to manage sheet/full-screen modal state.
-- Use `DeepLinkParser` to parse URLs, then map the parsed request to your app routes.
-
 ## Examples
 
 Examples below are reference implementations to demonstrate usage patterns. They are not required architecture rules. The package contract is defined in the **Core API** section above.
@@ -162,7 +162,7 @@ enum ModalRoute: NavigationRoute {
 }
 ```
 
-### 2) Build a Single-Tab App
+### 2) Build a Single-Tab App (and modal presentation)
 
 This example uses dependency injection. In the next example (`Tab-Based App`), we use environment object injection.
 
@@ -170,40 +170,43 @@ This example uses dependency injection. In the next example (`Tab-Based App`), w
 import SwiftUI
 import AGNavigator
 
-struct SingleTabApp: View {
+@main
+struct SingleTabApp: App {
     @State private var navigator = Navigator<HomeRoute>()
     @State private var modalPresenter = ModalPresenter<ModalRoute>()
 
-    var body: some View {
-        HomeNavigationScreen(
-            navigator: navigator,
-            modalPresenter: modalPresenter
-        )
-        .onOpenURL { url in
-            guard let request = DeepLinkParser.parse(url: url) else { return }
-            guard let path = request.root else { return }
-            let routeValue = request.childPath.first ?? request.data["id"] ?? "default"
-
-            switch path {
-            case "detail":
-                navigator.routes = [.detail(id: routeValue)]
-            case "subdetail", "sub-detail":
-                navigator.routes = [.subDetail(id: routeValue)]
-            default:
-                return
-            }
+    var body: some Scene {
+        WindowGroup {
+            HomeScreen(
+                navigator: navigator,
+                modalPresenter: modalPresenter
+            )
         }
     }
 }
 
-struct HomeNavigationScreen: View {
+struct HomeScreen: View {
     @Bindable var navigator: Navigator<HomeRoute>
     @Bindable var modalPresenter: ModalPresenter<ModalRoute>
 
     var body: some View {
         NavigationStack(path: $navigator.routes) {
-            Button("Open Detail") {
-                navigator.navigate(to: .detail(id: "home-001"))
+            VStack(alignment: .leading) {
+                Button("Navigate to Detail") {
+                    navigator.navigate(to: .detail(id: "home-001"))
+                }
+        
+                Button("Open Info Sheet") {
+                    modalPresenter.present(.info(message: "Presented as sheet from Home"), as: .sheet)
+                }
+            }
+            .navigationDestination(for: HomeRoute.self) { route in
+                switch route {
+                case .detail:
+                    Text("Detail Screen")
+                case .subDetail:
+                    Text("Sub-detail Screen")
+                }
             }
         }
         .sheet(item: $modalPresenter.presentedSheet) { route in
@@ -211,7 +214,7 @@ struct HomeNavigationScreen: View {
             case .info(let message):
                 Text(message)
             case .welcome:
-                EmptyView()
+                Text("Welcome Screen")
             }
         }
     }
@@ -245,36 +248,45 @@ final class TabAppNavigator {
     }
 }
 
-struct MainScreen: View {
+@main
+struct TabBasedApp: App {
     @State private var appNavigator = TabAppNavigator()
 
-    var body: some View {
-        TabView(selection: $appNavigator.selectedTab) {
-            Tab("Home", systemImage: "house", value: AppTab.home) {
-                HomeNavigationScreen()
-            }
+    var body: some Scene {
+        WindowGroup {
+            TabView(selection: $appNavigator.selectedTab) {
+                Tab("Home", systemImage: "house", value: AppTab.home) {
+                    HomeScreen()
+                }
 
-            Tab("Search", systemImage: "magnifyingglass", value: AppTab.search) {
-                SearchNavigationScreen()
-            }
+                Tab("Search", systemImage: "magnifyingglass", value: AppTab.search) {
+                    SearchScreen()
+                }
 
-            Tab("Settings", systemImage: "gear", value: AppTab.settings) {
-                SettingsNavigationScreen()
+                Tab("Settings", systemImage: "gear", value: AppTab.settings) {
+                    SettingsScreen()
+                }
             }
+            .environment(appNavigator)
         }
-        .environment(appNavigator)
     }
 }
 
-struct SearchNavigationScreen: View {
+struct SearchScreen: View {
     @Environment(TabAppNavigator.self) private var appNavigator
 
     var body: some View {
         @Bindable var navigator = appNavigator.search
 
         NavigationStack(path: $navigator.routes) {
-            Button("Open Results") {
+            Button("Navigate to Results") {
                 navigator.navigate(to: .results(query: "swiftui"))
+            }
+            .navigationDestination(for: SearchRoute.self) { route in
+                switch route {
+                case .results(let query):
+                    Text("Results for: \(query)")
+                }
             }
         }
     }
@@ -303,16 +315,16 @@ enum AccountRoute: Hashable {
     case followers
 }
 
-struct HomeStackScreen: View {
+struct HomeScreen: View {
     @State private var navigator = MultiRouteNavigator()
 
     var body: some View {
         NavigationStack(path: $navigator.routes) {
-            VStack(alignment: .leading, spacing: 16) {
-                Button("Open Details") {
+            VStack(alignment: .leading) {
+                Button("Navigate to Details") {
                     navigator.navigate(to: HomeRoute.details)
                 }
-                Button("Open Account") {
+                Button("Navigate to Account") {
                     navigator.navigate(to: HomeRoute.account)
                 }
             }
@@ -333,7 +345,7 @@ struct AccountScreen: View {
     @Bindable var navigator: MultiRouteNavigator
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading) {
             Button("Edit Profile") {
                 navigator.navigate(to: AccountRoute.edit)
             }
@@ -391,10 +403,8 @@ Typical integration:
     switch request.root {
     case "home":
         // map childPath/data to HomeRoute
-        break
     case "search":
         // map childPath/data to SearchRoute
-        break
     default:
         break
     }
@@ -408,8 +418,7 @@ func handleDeepLink(_ url: URL, navigator: Navigator<HomeRoute>) {
     guard let request = DeepLinkParser.parse(url: url) else { return }
 
     guard request.root == "home" else { return }
-    if request.childPath.first == "detail",
-       let id = request.data["id"] {
+    if request.childPath.first == "detail", let id = request.data["id"] {
         navigator.navigate(to: .detail(id: id))
     }
 }
