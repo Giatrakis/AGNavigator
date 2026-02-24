@@ -41,6 +41,14 @@ public final class Navigator<Route: NavigationRoute>: Navigating {
         }
     }
 
+    /// Replaces the entire stack with a single route.
+    /// - Parameters:
+    ///   - route: The route to present.
+    ///   - animated: Whether the transition should animate. Defaults to `true`.
+    public func replace(with route: Route, animated: Bool = true) {
+        replace(with: [route], animated: animated)
+    }
+
     /// Checks whether the stack contains a route or a matching predicate.
     /// - Parameters:
     ///   - route: A specific route to search for.

@@ -90,6 +90,14 @@ public final class MultiRouteNavigator: MultiRouteNavigating {
         }
     }
 
+    /// Replaces the entire path with a single route.
+    /// - Parameters:
+    ///   - route: The route to present.
+    ///   - animated: Whether the transition should animate. Defaults to `true`.
+    public func replace<Route: Hashable>(with route: Route, animated: Bool = true) {
+        replace(with: [route], animated: animated)
+    }
+
     /// Checks whether the path contains a route of the given type matching a predicate.
     /// - Parameters:
     ///   - type: The route type to search.
